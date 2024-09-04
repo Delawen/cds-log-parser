@@ -14,6 +14,7 @@ import org.springframework.experiment.cds.parser.CdsArchiveLogParser;
 import org.springframework.experiment.cds.parser.CdsArchiveReport;
 import org.springframework.experiment.cds.parser.ClassLoadingLogParser;
 import org.springframework.experiment.cds.parser.ClassLoadingReport;
+import org.springframework.experiment.cds.parser.LeydenLogParser;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
@@ -84,6 +85,9 @@ class Runner implements ApplicationRunner {
 		ClassLoadingLogParser parser = new ClassLoadingLogParser(workingDirectory);
 		ClassLoadingReport report = parser.parser(new FileSystemResource(logFile));
 		new ClassLoadingReportPrinter().print(report, System.out);
+
+		new LeydenReportPrinter().print((new LeydenLogParser()).parser(new FileSystemResource(logFile)), System.out);
+
 	}
 
 	private static String getValue(ApplicationArguments args, String option, String defaultValue) {

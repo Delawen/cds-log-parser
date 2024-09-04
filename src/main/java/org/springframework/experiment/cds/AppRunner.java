@@ -26,9 +26,13 @@ class AppRunner {
 		Path cdsArchiveLogFile = Files.createTempFile("cds-archive-warnings", ".log");
 		List<String> allArguments = new ArrayList<>();
 		allArguments.add("java");
+		allArguments.add("-XX:+UseG1GC"); // Make sure we always use the same GC
+		allArguments.add("-XX:G1HeapRegionSize=1048576"); // Temporarily needed
 		allArguments.add("-Xlog:cds=off:stdout"); // disable logging of CDS in the console
 		allArguments.add("-Xlog:cds=warning:file=%s:tags".formatted(cdsArchiveLogFile.toString()));
-		allArguments.add("-XX:ArchiveClassesAtExit=application.jsa");
+		// allArguments.add("-XX:ArchiveClassesAtExit=application.jsa");
+		allArguments.add("-XX:CacheDataStore=application.aot");
+		allArguments.add("-XX:+StoreCachedCode");
 		allArguments.add("-Dspring.context.exit=onRefresh"); // Exit automatically
 		allArguments.addAll(processArguments);
 		Path out = Files.createTempFile("cds-archive-run", ".log");
@@ -38,7 +42,6 @@ class AppRunner {
 			.waitFor();
 		if (exit != 0) {
 			System.out.println(Files.readString(out));
-			throw new IllegalStateException("Failed to run application, see log above");
 		}
 		return cdsArchiveLogFile;
 	}

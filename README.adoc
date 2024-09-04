@@ -5,7 +5,7 @@ It can also read the JVM logs and produce a report about class loading.
 
 == Building
 
-You need Java 17
+You need Java with Leyden (24+).
 
 [indent=0]
 ----
@@ -61,6 +61,28 @@ To run a report, specify the working directory where the `cds.log` file is locat
 [indent=0]
 ----
 	$ ./cds-log-parser.jar --target=/usr/local/my-app
+----
+
+== To Run Everything at Once
+
+This is meant to be run from the root folder of this repository.
+It will create the cds and archive files on the target folder.
+
+[indent=0]
+----
+    # Set up the variable with your jar file
+    $ JAR_FILE="/location/to/our/jarfile"
+    # Clean previous runs, just in case
+    $ rm -f "target/cds.log" "target/archive.jsa"
+    # Generates training run
+    $ target/cds-log-parser.jar --jar=$JAR_FILE --mode=create
+    # Deployment run
+    $ java -XX:+LoadCachedCode -Xlog:class+load,scc*,cds*=trace:file=target/cds.log:tags -XX:+UseG1GC -XX:G1HeapRegionSize=1048576 -XX:SharedArchiveFile=target/application.jsa -jar $JAR_FILE
+
+java -XX:+LoadCachedCode -XX:CacheDataStore="target/application.aot" -Xlog:class+load,scc*,cds*=trace:file=cds.log:tags -XX:+UseG1GC -XX:G1HeapRegionSize=1048576 -jar $JAR_FILE
+
+    # Extract summary from logs
+    $ target/cds-log-parser.jar --target=.
 ----
 
 == Examples
