@@ -82,7 +82,7 @@ It will create the cds and archive files on the target folder.
 java -XX:+LoadCachedCode -XX:CacheDataStore="target/application.aot" -Xlog:class+load,scc*,cds*=trace:file=cds.log:tags -XX:+UseG1GC -XX:G1HeapRegionSize=1048576 -jar $JAR_FILE
 
     # Extract summary from logs
-    $ target/cds-log-parser.jar --target=.
+    $ target/cds-log-parser.jar --target=. --listSize=8
 ----
 
 == Examples

@@ -86,7 +86,10 @@ class Runner implements ApplicationRunner {
 		ClassLoadingReport report = parser.parser(new FileSystemResource(logFile));
 		new ClassLoadingReportPrinter().print(report, System.out);
 
-		new LeydenReportPrinter().print((new LeydenLogParser()).parser(new FileSystemResource(logFile)), System.out);
+		Integer listSize = Integer.valueOf(getValue(args, "listSize", "10"));
+
+		new LeydenReportPrinter().print((new LeydenLogParser()).parser(new FileSystemResource(logFile)), System.out,
+				listSize);
 
 	}
 

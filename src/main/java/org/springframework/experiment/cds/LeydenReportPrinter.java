@@ -4,9 +4,11 @@ import org.springframework.experiment.cds.parser.LeydenLogParser;
 import org.springframework.experiment.cds.parser.LeydenReport;
 
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -17,7 +19,7 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 class LeydenReportPrinter {
 
-	void print(LeydenReport report, PrintStream out) {
+	void print(LeydenReport report, PrintStream out, Integer listSize) {
 		out.println("Leyden Report:");
 
 		out.println("  Which classloaders we are using:");
@@ -34,41 +36,56 @@ class LeydenReportPrinter {
 		out.println();
 
 		out.println("  Startup Code Cache (SCC):");
-		out.printf("%10d entries found. %n", report.sccTotalEntries());
-		out.printf("     NMethods recovered by compilation level: %n");
+
+		out.printf("%10d entries found in the Startup Code Cache. %n", report.sccTotalEntries());
+		out.printf("     Compiled NMethods recovered by compilation level: %n");
 		report.sccNMethod()
 			.entrySet()
 			.stream()
 			.sorted(Map.Entry.comparingByKey())
-			.forEach((entry) -> out.printf("%10d entries in compìlation level '%s' %n", entry.getValue().size(),
+			.forEach((entry) -> out.printf("%10d entries in compilation level '%s' %n", entry.getValue().size(),
 					entry.getKey()));
-		out.printf("     Top classes with compiled methods: %n");
+
+		for (String level : report.sccNMethod().keySet()) {
+			Integer l = Integer.valueOf(level.substring(1));
+			for (String level2 : report.sccNMethod().keySet()) {
+				Integer l2 = Integer.valueOf(level2.substring(1));
+				if (l < l2) {
+					List<String> tmp = new ArrayList<>(report.sccNMethod().get(level));
+					tmp.retainAll(report.sccNMethod().get(level2));
+					for (String className : tmp) {
+						out.printf("        > Found %s both in levels %s and %s. %n", className, level, level2);
+					}
+				}
+			}
+		}
+
 		HashMap<String, Integer> topClasses = new HashMap<>();
+		Integer arrays = 0;
 		for (Map.Entry<String, Collection<String>> stringCollectionEntry : report.sccNMethod().entrySet()) {
 			for (String value : stringCollectionEntry.getValue()) {
 				String className = value.split("::")[0];
+				if (className.indexOf("[") > 0) {
+					arrays++;
+				}
 				if (!topClasses.containsKey(className)) {
 					topClasses.put(className, 0);
 				}
 				topClasses.replace(className, topClasses.get(className) + 1);
 			}
 		}
+		out.printf("     From which %d classes are arrays. %n", arrays);
+		out.println();
+		out.printf("     Top %d classes with compiled nmethods: %n", listSize);
 
 		topClasses.entrySet()
 			.stream()
 			.sorted(Map.Entry.comparingByValue((o1, o2) -> o2 - o1))
-			.limit(10)
-			.forEach((className) -> out.printf("%10d methods in class '%s' %n", className.getValue(),
+			.limit(listSize)
+			.forEach((className) -> out.printf("%10d Total NMethods in class '%s' %n", className.getValue(),
 					className.getKey()));
-		out.printf("     Total methods recovered by compilation level: %n");
-		report.scc()
-			.entrySet()
-			.stream()
-			.sorted(Map.Entry.comparingByKey())
-			.forEach((entry) -> out.printf("%10d entries in compìlation level '%s' %n", entry.getValue().size(),
-					entry.getKey()));
 
-		out.printf("     Top classes with compiled methods: %n");
+		out.printf("     Top %d classes with more Metadata Methods: %n", listSize);
 		topClasses.clear();
 		for (Map.Entry<String, Collection<String>> stringCollectionEntry : report.scc().entrySet()) {
 			for (String value : stringCollectionEntry.getValue()) {
@@ -83,7 +100,7 @@ class LeydenReportPrinter {
 		topClasses.entrySet()
 			.stream()
 			.sorted(Map.Entry.comparingByValue((o1, o2) -> o2 - o1))
-			.limit(10)
+			.limit(listSize)
 			.forEach((className) -> out.printf("%10d methods in class '%s' %n", className.getValue(),
 					className.getKey()));
 		out.println();
