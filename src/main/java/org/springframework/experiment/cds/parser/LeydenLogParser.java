@@ -1,7 +1,5 @@
 package org.springframework.experiment.cds.parser;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.springframework.core.io.Resource;
 import org.springframework.util.StringUtils;
 
@@ -9,7 +7,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -34,15 +31,11 @@ public class LeydenLogParser {
 
 	public static final String HAS_RAW_ARCHIVED_MIRROR = "has raw archived mirror";
 
-	public static final String ERROR = "error";
-
 	public static final String RECREATE = "recreate";
 
 	public static final String RESTORED = "restored";
 
 	public static final String CLEARING_ROOT = "Clearing root ";
-
-	private static final Log logger = LogFactory.getLog(LeydenLogParser.class);
 
 	public LeydenReport parser(Resource resource) throws IOException {
 		if (!resource.exists()) {
@@ -78,7 +71,9 @@ public class LeydenLogParser {
 
 		private final HashMap<String, Root> roots = new HashMap<>();
 
-		private final LinkedList<String> errors = new LinkedList<>();
+		private final LinkedList<String> errorsVtables = new LinkedList<>();
+
+		private final LinkedList<String> errorsHeapObjects = new LinkedList<>();
 
 		private final HashMap<String, Integer> vtables = new HashMap<>();
 
@@ -122,7 +117,7 @@ public class LeydenLogParser {
 					String shortenedMessage = message.substring(7).trim();
 					String[] data = shortenedMessage.split(" ");
 					if (vtables.containsKey(data[4])) {
-						this.errors.add("Repeated vtables message for '" + data[4] + "'. We had value "
+						this.errorsVtables.add("Repeated vtables message for '" + data[4] + "'. We had value "
 								+ vtables.get(data[4]) + " and now we have " + data[0]);
 					}
 					else {
@@ -140,9 +135,9 @@ public class LeydenLogParser {
 						String className = previousMessage.substring(0,
 								previousMessage.lastIndexOf(HAS_RAW_ARCHIVED_MIRROR) - 1);
 						if (this.roots.containsKey(root)) {
-							this.errors.add("Found duplicated root clearing: '" + root + "'. Previous root was "
-									+ this.roots.get(root) + ". Current root has className '" + className
-									+ "' and pointer '" + pointer + "'.");
+							this.errorsHeapObjects.add("Found duplicated root clearing: '" + root
+									+ "'. Previous root was " + this.roots.get(root) + ". Current root has className '"
+									+ className + "' and pointer '" + pointer + "'.");
 						}
 						else {
 							this.roots.put(root, new Root(className, pointer));
@@ -157,13 +152,17 @@ public class LeydenLogParser {
 					String className = data[1];
 					String pointer = data[4];
 					this.mirror.get(RESTORED).add(className);
-					if (!this.roots.containsKey(className)) {
-						this.errors.add("Missing restored: '" + className + "'. Current pointer is '" + pointer + "'.");
-					}
-					else if (!this.roots.get(className).pointer().equals(pointer)) {
-						this.errors.add("Mismatched pointer for '" + className + "'. We had "
-								+ this.roots.get(className).pointer() + " and now it is " + pointer);
-					}
+					// if (!this.roots.containsKey(className)) {
+					// this.errorsHeapObjects
+					// .add("Missing restored: '" + className + "'. Current pointer is '"
+					// + pointer + "'.");
+					// }
+					// else if (!this.roots.get(className).pointer().equals(pointer)) {
+					// this.errorsHeapObjects.add("Mismatched pointer for '" + className +
+					// "'. We had "
+					// + this.roots.get(className).pointer() + " and now it is " +
+					// pointer);
+					// }
 				}
 			}
 			else if (logLine.containTags("cds", "mirror")) {
@@ -173,7 +172,7 @@ public class LeydenLogParser {
 				else if (message.indexOf(HAS_RAW_ARCHIVED_MIRROR) != -1) {
 					String className = message.substring(0, message.lastIndexOf(HAS_RAW_ARCHIVED_MIRROR) - 1);
 					if (!this.unshareable.values().stream().anyMatch(list -> list.contains(className))) {
-						this.errors.add("Weird sequence with '" + className + "'. Got '" + message + "' "
+						this.errorsHeapObjects.add("Weird sequence with '" + className + "'. Got '" + message + "' "
 								+ "but no attempt to restore was found previously.");
 					}
 				}
@@ -222,7 +221,7 @@ public class LeydenLogParser {
 
 		public LeydenReport toReport() {
 			return new LeydenReport(this.mirror, this.unshareable, this.vtables, this.sccTotalEntries, this.scc,
-					this.sccNMethod);
+					this.sccNMethod, this.errorsHeapObjects, this.errorsVtables);
 		}
 
 	}
